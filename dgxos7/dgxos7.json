@@ -1,0 +1,82 @@
+{
+    "variables":
+        {
+            "platform": "dgx_h100",
+            "dgxos7_iso": "{{env `DGXOS7_ISO_PATH`}}",
+            "dgxos7_sha256sum": "{{env `DGXOS7_SHA256SUM`}}"
+        },
+    "builders": [
+        {
+            "type": "qemu",
+            "communicator": "ssh",
+            "ssh_username": "ubuntu",
+            "ssh_password": "ubuntu",
+            "ssh_timeout": "90m",
+            "iso_url": "file:{{user `dgxos7_iso`}}",
+            "iso_checksum": "sha256:{{user `dgxos7_sha256sum`}}",
+            "http_directory": "http",
+            "boot_command": [
+                "<down>e<down><down><end>",
+                " force-ai=http://10.0.2.2:{{ .HTTPPort }}/packer-ai.yaml force-platform={{user `platform`}} force-bootdisk=vda nooemconfig no-mlnx-fw-update ip=dhcp",
+                "<f10>"
+            ],
+            "boot_wait": "3s",
+            "disk_size": "12G",
+            "headless": true,
+            "vnc_bind_address": "0.0.0.0",
+            "vnc_use_password": false,
+            "memory": 4096,
+            "qemuargs": [
+                [ "-serial", "stdio" ],
+                [ "-bios", "/usr/share/ovmf/OVMF.fd" ],
+                [ "-smp", "8"]
+            ]
+        }
+    ],
+    "provisioners": [
+        {
+            "type": "file",
+            "sources": ["scripts/curtin-hooks", "scripts/setup-bootloader"],
+            "destination": "/tmp/"
+        },
+        {
+            "type": "shell",
+            "inline": [
+                "echo 'Installing curtin hooks for MAAS deployment...'",
+                "sudo mkdir -p /curtin",
+                "sudo mv /tmp/curtin-hooks /curtin/",
+                "sudo mv /tmp/setup-bootloader /curtin/",
+                "sudo chmod 750 /curtin/curtin-hooks /curtin/setup-bootloader",
+                "echo 'Resetting cloud-init state for MAAS deployment...'",
+                "sudo cloud-init clean --logs || true",
+                "echo 'Removing cloud-init disable files (after clean)...'",
+                "sudo rm -fv /etc/cloud/cloud-init.disabled || true",
+                "sudo rm -fv /etc/cloud/cloud.cfg.d/99-installer.cfg || true",
+                "sudo rm -fv /etc/cloud/cloud.cfg.d/90-installer-network.cfg || true",
+                "sudo rm -fv /etc/cloud/clean.d/99-installer || true",
+                "echo 'Removing fstab to let MAAS configure storage...'",
+                "sudo rm -fv /etc/fstab || true",
+                "echo 'Verifying cloud-init is enabled...'",
+                "ls -la /etc/cloud/ | grep -v '^d' || true",
+                "echo 'Creating first-boot marker for dgx-release service...'",
+                "sudo touch /var/tmp/first-boot-dgx-release",
+                "echo 'Listing curtin hooks...'",
+                "ls -la /curtin/",
+                "echo 'Syncing filesystem...'",
+                "sync"
+            ]
+        }
+    ],
+    "post-processors": [
+        {
+            "type": "shell-local",
+            "inline_shebang": "/bin/bash -e",
+            "inline": [
+                "ROOT_PARTITION=2",
+                "OUTPUT='dgxos7.tar.gz'",
+                "source ../scripts/fuse-nbd",
+                "source ../scripts/fuse-tar-root"
+            ]
+        }
+    ]
+}

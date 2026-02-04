@@ -1,11 +1,11 @@
 # Building Custom Images for MAAS with Packer
 
-This repository provides [Packer](https://developer.hashicorp.com/packer) templates, scripts, and configuration to build custom operating system images for [MAAS](https://maas.io).  
+This repository provides [Packer](https://developer.hashicorp.com/packer) templates, scripts, and configuration to build custom operating system images for [MAAS](https://maas.io).
 
 Use these templates if you need:
-- **Custom Ubuntu images** with pre-installed packages, security hardening, or organization-specific tweaks.  
-- **Non-Ubuntu images** (RHEL, CentOS, SLES, Windows, ESXi, etc.) that MAAS does not provide out-of-the-box.  
-- A **repeatable, automated build process** for images you can upload into MAAS.  
+- **Custom Ubuntu images** with pre-installed packages, security hardening, or organization-specific tweaks.
+- **Non-Ubuntu images** (RHEL, CentOS, SLES, Windows, ESXi, etc.) that MAAS does not provide out-of-the-box.
+- A **repeatable, automated build process** for images you can upload into MAAS.
 
 > ⚠️ If you only need stock Ubuntu images, see the [How to manage images](https://canonical.com/maas/docs/how-to-manage-images) guide instead.
 
@@ -13,10 +13,10 @@ Use these templates if you need:
 
 ## Why build custom images?
 
-- **Consistency**: Standardize environments across your MAAS deployments.  
-- **Control**: Add, remove, or patch software before deployment.  
-- **Compliance**: Ensure security and audit requirements are met.  
-- **Coverage**: Deploy non-Ubuntu operating systems through MAAS.  
+- **Consistency**: Standardize environments across your MAAS deployments.
+- **Control**: Add, remove, or patch software before deployment.
+- **Compliance**: Ensure security and audit requirements are met.
+- **Coverage**: Deploy non-Ubuntu operating systems through MAAS.
 
 MAAS relies on these images when commissioning, deploying, and testing machines. Custom images let you tailor exactly what gets deployed.
 
@@ -27,12 +27,12 @@ MAAS relies on these images when commissioning, deploying, and testing machines.
 Before building an image, prepare a build environment:
 
 - An Ubuntu host or VM with:
-  - 4 CPU cores  
-  - 8 GB RAM  
-  - 25 GB free storage  
-  - Hardware-assisted virtualization enabled  
-- [Packer installed](https://developer.hashicorp.com/packer/tutorials/docker-get-started/get-started-install-cli#installing-packer)  
-- (Optional) QEMU with GUI if you want to see builds interactively  
+  - 4 CPU cores
+  - 8 GB RAM
+  - 25 GB free storage
+  - Hardware-assisted virtualization enabled
+- [Packer installed](https://developer.hashicorp.com/packer/tutorials/docker-get-started/get-started-install-cli#installing-packer)
+- (Optional) QEMU with GUI if you want to see builds interactively
 
 Verify Packer is installed:
 
@@ -56,13 +56,13 @@ cd packer-maas
 ### 2. Select a template
 
 Each supported operating system has its own directory with:
-- One or more **HCL2 templates**  
-- A `scripts/` directory with helper scripts  
-- An `http/` directory with auto-configuration files  
-- A `README.md` explaining OS-specific details  
-- A `Makefile` for convenience  
+- One or more **HCL2 templates**
+- A `scripts/` directory with helper scripts
+- An `http/` directory with auto-configuration files
+- A `README.md` explaining OS-specific details
+- A `Makefile` for convenience
 
-See the [Existing templates](#existing-templates) table below for the full list.  
+See the [Existing templates](#existing-templates) table below for the full list.
 
 ### 3. Build the image
 
@@ -80,8 +80,8 @@ PACKER_LOG=1 packer build ubuntu.pkr.hcl
 ```
 
 If you want to view the VM build process:
-- Remove `"headless": true` from the template  
-- Or connect via VNC using the IP/port shown during build  
+- Remove `"headless": true` from the template
+- Or connect via VNC using the IP/port shown during build
 
 ### 4. Upload the image to MAAS
 
@@ -91,7 +91,7 @@ After building, upload the image to your MAAS region controller:
 maas $PROFILE boot-resources create name='custom/ubuntu-24.04'     title='Ubuntu 24.04 Custom'     architecture='amd64/generic'     filetype='tgz'     content@=ubuntu-24.04-custom.tgz
 ```
 
-> ℹ️ Commands vary slightly by OS — see the template’s `README.md` for exact syntax.
+> ℹ️ Commands vary slightly by OS — see the template's `README.md` for exact syntax.
 
 ### 5. Verify in MAAS
 
@@ -107,7 +107,7 @@ Then deploy a test machine with the new image and confirm you can log in.
 
 ### Ubuntu example (quick start)
 
-Here’s a complete example for building and uploading a custom Ubuntu image.
+Here's a complete example for building and uploading a custom Ubuntu image.
 
 1. **Install dependencies**
 
@@ -167,12 +167,12 @@ ssh ubuntu@<machine-ip>
 
 Every OS template can be adjusted to include your own configuration. Common options include:
 
-- Adding extra packages in the provisioner step  
-- Including custom cloud-init or preseed files  
-- Adjusting the Packer `boot_command` to change installation behavior  
-- Changing image names (`name`, `title`) to avoid cache conflicts  
+- Adding extra packages in the provisioner step
+- Including custom cloud-init or preseed files
+- Adjusting the Packer `boot_command` to change installation behavior
+- Changing image names (`name`, `title`) to avoid cache conflicts
 
-Refer to the `README.md` inside each OS directory for supported parameters.  
+Refer to the `README.md` inside each OS directory for supported parameters.
 
 ---
 
@@ -187,6 +187,7 @@ Refer to the `README.md` inside each OS directory for supported parameters.
 | [AzureLinux 2.0](azurelinux/README.md)    | Beta               | x86_64            | >= 3.3           |
 | [CentOS 6](centos6/README.md)          | EOL                | x86_64            | >= 1.6           |
 | [CentOS 7](centos7/README.md)          | EOL                | x86_64            | >= 2.3           |
+| [CentOS 7 UFM](centos7-ufm/README.md)  | Beta               | x86_64            | >= 2.3           |
 | [CentOS 8](centos8/README.md)          | EOL                | x86_64            | >= 2.7           |
 | [CentOS 8 Stream](centos8-stream/README.md)   | Beta               | x86_64            | >= 3.2           |
 | [CentOS 9 Stream](centos9-stream/README.md)   | Beta               | x86_64            | >= 3.2           |
@@ -194,6 +195,8 @@ Refer to the `README.md` inside each OS directory for supported parameters.
 | [Debian 11](debian/README.md)         | Beta               | x86_64 / aarch64  | >= 3.2           |
 | [Debian 12](debian/README.md)         | Beta               | x86_64 / aarch64  | >= 3.2           |
 | [Debian 13](debian/README.md)         | Beta               | x86_64 / aarch64  | >= 3.2           |
+| [DGX OS 5](dgxos5/README.md)          | Beta               | x86_64            | >= 3.0           |
+| [DGX OS 7](dgxos7/README.md)          | Beta               | x86_64            | >= 3.0           |
 | [Fedora Server 41](fedora-server/README.md)         | Beta               | x86_64 / aarch64  | >= 3.2           |
 | [Fedora Server 42](fedora-server/README.md)         | Beta               | x86_64 / aarch64  | >= 3.2           |
 | [OL8](ol8/README.md)               | Alpha              | x86_64            | >= 3.5           |
@@ -225,56 +228,56 @@ Refer to the `README.md` inside each OS directory for supported parameters.
 
 ## Maturity levels
 
-- **Stable**: Tested and suitable for production.  
-- **Beta**: Works in most cases but needs broader validation.  
-- **Alpha**: Depends on unreleased MAAS or Curtin versions; not production-ready.  
-- **EOL**: Upstream OS is no longer supported — not recommended.  
+- **Stable**: Tested and suitable for production.
+- **Beta**: Works in most cases but needs broader validation.
+- **Alpha**: Depends on unreleased MAAS or Curtin versions; not production-ready.
+- **EOL**: Upstream OS is no longer supported — not recommended.
 
 ---
 
 ## Debugging builds
 
-- Use `PACKER_LOG=1` to enable verbose logging.  
-- Use `FOREGROUND=1` to keep processes in the foreground.  
+- Use `PACKER_LOG=1` to enable verbose logging.
+- Use `FOREGROUND=1` to keep processes in the foreground.
 - To view the build VM:
-  - Remove `headless=true` in the template, or  
-  - Connect via VNC using the IP/port printed during build.  
+  - Remove `headless=true` in the template, or
+  - Connect via VNC using the IP/port printed during build.
 
 ---
 
 ## Best practices for uploading images
 
-- Follow examples in each OS’s `README.md`.  
+- Follow examples in each OS's `README.md`.
 - The `name` parameter is formatted as `prefix/os-name`. The `os-name` can include dashes, dots and numbers but no space and special characters.
-- Use **unique names** for images to avoid cache collisions.  
+- Use **unique names** for images to avoid cache collisions.
 - The `title` parameter is free text format as long as enclosed in quotes.
-- Upload from a machine close to the MAAS region controller to reduce latency.  
-- Test images on a small scale before wide deployment.  
+- Upload from a machine close to the MAAS region controller to reduce latency.
+- Test images on a small scale before wide deployment.
 
 ---
 
 ## Contributing new templates
 
-We welcome contributions.  
+We welcome contributions.
 
 ### Project structure
 Each OS directory typically contains:
-- One or more `.pkr.hcl` templates  
-- `scripts/` for provisioning  
-- `http/` for installer automation  
-- A `README.md` with OS-specific instructions  
-- A `Makefile` for build automation  
+- One or more `.pkr.hcl` templates
+- `scripts/` for provisioning
+- `http/` for installer automation
+- A `README.md` with OS-specific instructions
+- A `Makefile` for build automation
 
 ### Submit a new template
-1. [Fork the repo](https://github.com/canonical/packer-maas/fork).  
-2. Create a branch.  
-3. Add a new directory or `.pkr.hcl` template.  
-4. Run `packer validate .` to check.  
-5. Commit and push.  
-6. Open a pull request.  
+1. [Fork the repo](https://github.com/canonical/packer-maas/fork).
+2. Create a branch.
+3. Add a new directory or `.pkr.hcl` template.
+4. Run `packer validate .` to check.
+5. Commit and push.
+6. Open a pull request.
 
 ---
 
 ## Next steps
 
-- [How to manage images in MAAS](https://canonical.com/maas/docs/how-to-manage-images)  
+- [How to manage images in MAAS](https://canonical.com/maas/docs/how-to-manage-images)

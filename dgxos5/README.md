@@ -1,3 +1,9 @@
+# DGX OS 5 Packer Template for MAAS
+
+> **Note:** For newer DGX systems (H100, H200, B200, B300) and newer DGX A100 systems running DGX OS 7 (Ubuntu 24.04), use the [dgxos7](../dgxos7/) template instead. This template is for legacy DGX-1, DGX-2, and older DGX A100 systems running DGX OS 5 (Ubuntu 20.04).
+
+## Prerequisites
+
 Install dependencies (Ubuntu 18.04 and 20.04)
 
 ```sh

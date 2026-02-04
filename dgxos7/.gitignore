@@ -1,0 +1,15 @@
+# Claude Code
+.claude/
+claude.md
+CLAUDE.md
+tasks/
+
+# Build artifacts
+*.tar.gz
+output-qemu/
+
+# macOS
+.DS_Store
+
+# Test files
+*-test.json

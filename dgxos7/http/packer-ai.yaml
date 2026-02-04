@@ -1,0 +1,151 @@
+version: 1
+
+locale: en_US.UTF-8
+
+apt:
+  preserve_sources_list: false
+  conf: |
+    Dpkg::Options {
+      "--force-confdef";
+      "--force-confold";
+    };
+  disable_suites: [release, updates, backports, security, proposed]
+
+network:
+  version: 2
+  ethernets:
+    all-en:
+      match:
+        name: en*
+      dhcp4: true
+
+storage:
+  swap:
+    size: 0
+  grub:
+    reorder_uefi: false
+  config:
+  - id: vda
+    type: disk
+    ptable: gpt
+    path: /dev/vda
+    name: osdisk
+    wipe: superblock-recursive
+  - id: vda-part1
+    type: partition
+    device: vda
+    number: 1
+    size: 512MB
+    flag: boot
+    grub_device: true
+  - id: vda-part2
+    type: partition
+    device: vda
+    number: 2
+    size: -1
+  - id: vda-part1-fs1
+    type: format
+    fstype: fat32
+    label: efi
+    volume: vda-part1
+  - id: vda-part2-fs1
+    type: format
+    fstype: ext4
+    label: root
+    volume: vda-part2
+  - id: vda-mount2
+    type: mount
+    path: /
+    device: vda-part2-fs1
+    options: errors=remount-ro
+  - id: boot-mount1
+    type: mount
+    path: /boot/efi
+    device: vda-part1-fs1
+
+identity:
+  realname: Ubuntu User
+  username: ubuntu
+  hostname: dgxos
+  password: "$6$.wrtx7qik5WIZFX3$sycY/k94LlOlX/v/VVVVo6HiBecSx5GM/8j1xR91cLFx.hiEEmsPlFnssKF0a9tEAHIv2YN/QTz1Yq.z8G1ST."
+
+ssh:
+  install-server: true
+  allow-pw: true
+
+early-commands:
+  # APPROACH: Replace nv-eula.sh with no-op in live environment before it runs
+  # The live system uses overlayfs, so we can modify "read-only" squashfs files
+  - |
+    if [ -f /usr/share/nvidia/nv-eula.sh ]; then
+      echo '#!/bin/sh' > /usr/share/nvidia/nv-eula.sh
+      echo 'exit 0' >> /usr/share/nvidia/nv-eula.sh
+      chmod +x /usr/share/nvidia/nv-eula.sh
+      echo "Replaced nv-eula.sh with no-op"
+    fi
+  # Backup: pre-seed debconf (in case replacement fails)
+  - echo 'nvidia nvidia/accepted-eula boolean true' | debconf-set-selections || true
+
+late-commands:
+  # Mount ISO for package installation
+  - mkdir -p /target/tmp/cdrom
+  - mount --bind /cdrom /target/tmp/cdrom || true
+  - |
+    cat << EOF > /target/etc/apt/sources.list
+    deb [check-date=no] file:///tmp/cdrom/ noble main restricted
+    EOF
+
+  # Pre-seed NVIDIA EULA in target before package installation
+  - curtin in-target -- /bin/bash -c "echo 'nvidia nvidia/accepted-eula boolean true' | debconf-set-selections"
+
+  # Divert nv-eula.sh and replace with no-op BEFORE any package installation
+  - curtin in-target -- mkdir -p /usr/share/nvidia
+  - curtin in-target -- dpkg-divert --add --rename --divert /usr/share/nvidia/nv-eula.sh.real /usr/share/nvidia/nv-eula.sh || true
+  - |
+    cat << 'EOFSCRIPT' > /target/usr/share/nvidia/nv-eula.sh
+    #!/bin/sh
+    # No-op replacement - EULA auto-accepted for automated install
+    exit 0
+    EOFSCRIPT
+  - chmod +x /target/usr/share/nvidia/nv-eula.sh
+
+  # Install DGX packages (CHANGE_INSTALL_PKGS substituted by preseed.sh with platform-specific packages)
+  - touch /target/tmp/ota_skip_write
+  - curtin in-target -- apt-get update -y
+  - curtin in-target -- /bin/bash -c "DEBIAN_FRONTEND=noninteractive RUN_FW_UPDATER=no apt-get install -y --no-install-recommends CHANGE_INSTALL_PKGS || apt-get install -f -y"
+  - curtin in-target -- apt-get purge -y unattended-upgrades || true
+
+  # Restore apt sources for post-install
+  - echo "# Ubuntu sources have moved to /etc/apt/sources.list.d/ubuntu.sources" > /target/etc/apt/sources.list
+  - |
+    cat << EOF > /target/etc/apt/sources.list.d/ubuntu.sources
+    Types: deb
+    URIs: http://us.archive.ubuntu.com/ubuntu/
+    Suites: noble noble-updates noble-backports
+    Components: main restricted universe multiverse
+    Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+
+    Types: deb
+    URIs: http://security.ubuntu.com/ubuntu/
+    Suites: noble-security
+    Components: main restricted universe multiverse
+    Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+    EOF
+
+  # SSH configuration for packer
+  - sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication yes/' /target/etc/ssh/sshd_config
+  - sed -i 's/^#*PermitRootLogin.*/PermitRootLogin yes/' /target/etc/ssh/sshd_config
+  - curtin in-target -- systemctl enable ssh
+  - curtin in-target -- systemctl set-default multi-user.target
+  - echo 'ubuntu ALL=(ALL) NOPASSWD:ALL' > /target/etc/sudoers.d/ubuntu
+  - chmod 440 /target/etc/sudoers.d/ubuntu
+
+  # Disable oem-config
+  - curtin in-target -- systemctl disable oem-config.target oem-config.service || true
+  - curtin in-target -- systemctl mask oem-config.target oem-config.service || true
+
+  # Enable NVIDIA services
+  - curtin in-target -- systemctl enable nvidia-persistenced.service || true
+
+  # Remove cloud-init.disabled (packer provisioner also does this as backup)
+  - rm -f /target/etc/cloud/cloud-init.disabled

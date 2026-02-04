@@ -1,0 +1,56 @@
+#!/bin/bash -e
+#
+# tar-root - Create a tar.gz from a binded /dev/nbd device
+#
+# Author: Lee Trager <lee.trager@canonical.com>
+#
+# Copyright (C) 2020-2021 Canonical
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+if [ $UID -ne 0 ]; then
+    echo "ERROR: Must be run as root!" >&2
+    exit 1
+fi
+
+TMP_DIR=$(mktemp -d /tmp/packer-maas-XXXX)
+
+echo 'Mounting root partition...'
+# Use p2 for GPT layouts (EFI on p1, root on p2), p1 for MBR layouts
+if [ -b "${nbd}p2" ]; then
+    mount "${nbd}p2" $TMP_DIR
+else
+    mount "${nbd}p1" $TMP_DIR
+fi
+
+if [ -d curtin ] || [ -d "$CURTIN_HOOKS" ]; then
+    echo 'Adding Curtin hooks...'
+    cp -r ${CURTIN_HOOKS:-curtin} $TMP_DIR
+fi
+
+echo "Creating MAAS image $OUTPUT..."
+tar -Sczpf $OUTPUT --acls --selinux --xattrs -C $TMP_DIR .
+
+if [ -n "$MANIFEST" ]; then
+    echo "Creating manifest..."
+    # RPM on CentOS/RHEL 7 needs /dev mounted so it can use /dev/urandom
+    mount -o bind /dev $TMP_DIR/dev
+    chroot $TMP_DIR rpm -qa | sort -u -o $MANIFEST
+    umount $TMP_DIR/dev
+fi
+
+echo 'Unmounting image...'
+umount $TMP_DIR
+qemu-nbd -d $nbd
+rmdir $TMP_DIR

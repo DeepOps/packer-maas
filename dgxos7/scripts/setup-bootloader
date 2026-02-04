@@ -1,0 +1,30 @@
+#!/bin/bash -ex
+#
+# setup-bootloader - Install GRUB bootloader for UEFI systems
+#
+# Based on canonical/packer-maas setup-bootloader script
+# Modified for DGX OS 7
+
+export DEBIAN_FRONTEND=noninteractive
+
+ARCH=$(dpkg --print-architecture)
+
+# Reconfigure GRUB and install to EFI partition
+dpkg-reconfigure grub-efi-${ARCH} || true
+update-grub
+
+if [ "${ARCH}" == "amd64" ]; then
+    GRUB_TARGET="x86_64-efi"
+else
+    GRUB_TARGET="arm64-efi"
+fi
+
+grub-install \
+    --target=${GRUB_TARGET} \
+    --efi-directory=/boot/efi \
+    --bootloader-id=ubuntu \
+    --recheck
+
+update-initramfs -uk all
+
+efibootmgr -v || true
